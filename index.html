@@ -3,428 +3,285 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BLE GPS 终端同步</title>
+    <title>GPS 一键同步终端</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
+            --bg: #090d16;
+            --card-bg: #131c2e;
             --primary: #38bdf8;
-            --primary-hover: #0284c7;
-            --success: #22c55e;
+            --success: #10b981;
+            --warn: #f59e0b;
             --danger: #ef4444;
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
-            --border-color: #334155;
+            --text-main: #f1f5f9;
+            --text-sub: #64748b;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body {
-            background-color: var(--bg-color);
+            background-color: var(--bg);
             color: var(--text-main);
-            padding: 16px;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            min-height: 100vh;
-        }
-        .header { text-align: center; margin-top: 8px; }
-        .header h1 { font-size: 1.3rem; font-weight: 700; color: var(--primary); }
-        .header p { font-size: 0.8rem; color: var(--text-sub); margin-top: 4px; }
-        
-        .card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 14px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-        .card-title {
-            font-size: 0.95rem;
-            font-weight: 600;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            padding: 40px 20px;
+            user-select: none;
         }
-        .badge {
-            font-size: 0.75rem;
-            padding: 2px 8px;
-            border-radius: 999px;
-            background: #334155;
-            color: var(--text-sub);
-        }
-        .badge.active { background: rgba(34, 197, 94, 0.2); color: var(--success); }
-        
-        .data-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        .data-item {
-            background: #0b1329;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #1e293b;
-        }
-        .data-label { font-size: 0.75rem; color: var(--text-sub); }
-        .data-val { font-size: 1.05rem; font-weight: 600; margin-top: 4px; color: #fff; word-break: break-all; }
-        
-        .button-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
+
+        .header { text-align: center; }
+        .header h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: 0.5px; }
+        .header p { font-size: 0.8rem; color: var(--text-sub); margin-top: 6px; }
+
+        /* 核心中央大按钮 */
+        .btn-wrapper {
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
         }
-        button:active { transform: scale(0.98); }
-        .btn-primary { background: var(--primary); color: #000; }
-        .btn-success { background: var(--success); color: #fff; }
-        .btn-secondary { background: #334155; color: #fff; }
-        button:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
-
-        .select-group {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 10px;
-            font-size: 0.85rem;
-        }
-        select {
-            background: #0b1329;
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 0.85rem;
+        .action-btn {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 2px solid #334155;
+            color: var(--primary);
+            font-size: 1.15rem;
+            font-weight: 700;
+            cursor: pointer;
             outline: none;
-        }
-
-        .hex-preview {
-            margin-top: 10px;
-            font-family: monospace;
-            font-size: 0.8rem;
-            background: #0b1329;
-            padding: 8px;
-            border-radius: 6px;
-            color: #f59e0b;
-            word-break: break-all;
-        }
-
-        .console-box {
-            background: #000;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 10px;
-            height: 150px;
-            overflow-y: auto;
-            font-family: Consolas, monospace;
-            font-size: 0.75rem;
-            color: #10b981;
             display: flex;
-            flex-direction: column-reverse;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2;
         }
-        .log-entry { margin-bottom: 4px; line-height: 1.3; }
-        .log-time { color: var(--text-sub); margin-right: 6px; }
-        .log-err { color: var(--danger); }
-        .log-warn { color: #f59e0b; }
+        .action-btn:active {
+            transform: scale(0.96);
+        }
+        .action-btn svg {
+            width: 44px;
+            height: 44px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            transition: all 0.3s ease;
+        }
+
+        /* 状态呼吸光环 */
+        .ring {
+            position: absolute;
+            width: 216px;
+            height: 216px;
+            border-radius: 50%;
+            border: 2px dashed rgba(56, 189, 248, 0.3);
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .busy .ring {
+            border-color: var(--warn);
+            animation: spin 3s linear infinite;
+        }
+        .busy .action-btn {
+            color: var(--warn);
+            border-color: var(--warn);
+        }
+        .success .ring {
+            border-color: var(--success);
+            transform: scale(1.05);
+        }
+        .success .action-btn {
+            color: var(--success);
+            border-color: var(--success);
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 状态与数据展示面板 */
+        .status-box {
+            width: 100%;
+            max-width: 320px;
+            background: var(--card-bg);
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 14px 16px;
+            text-align: center;
+        }
+        .status-text {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+        .status-detail {
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            font-family: monospace;
+        }
+
+        .footer {
+            font-size: 0.75rem;
+            color: #475569;
+        }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>PCB GPS 蓝牙同步助手</h1>
-        <p>适配 Android Chrome / Zephyr RTOS</p>
+        <h1>PCB 指向罗盘</h1>
+        <p>BLE GPS 一键注入终端</p>
     </div>
 
-    <!-- GPS 数据卡片 -->
-    <div class="card">
-        <div class="card-title">
-            <span>手机 GPS 定位状态</span>
-            <span id="gpsBadge" class="badge">未定位</span>
-        </div>
-        <div class="data-grid">
-            <div class="data-item">
-                <div class="data-label">纬度 (Latitude)</div>
-                <div id="latVal" class="data-val">--</div>
-            </div>
-            <div class="data-item">
-                <div class="data-label">经度 (Longitude)</div>
-                <div id="lonVal" class="data-val">--</div>
-            </div>
-            <div class="data-item">
-                <div class="data-label">水平精度 (米)</div>
-                <div id="accVal" class="data-val">--</div>
-            </div>
-            <div class="data-item">
-                <div class="data-label">更新时间</div>
-                <div id="timeVal" class="data-val">--</div>
-            </div>
-        </div>
-        <div style="margin-top: 12px;">
-            <button id="btnGetGps" class="btn-primary" onclick="toggleGpsTracking()">
-                📡 开启手机实时 GPS
-            </button>
-        </div>
+    <!-- 交互主体 -->
+    <div class="btn-wrapper" id="btnWrapper">
+        <div class="ring"></div>
+        <button class="action-btn" id="mainBtn" onclick="handleOneKeySync()">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 2v20M2 12h20M12 2l4 4M12 2L8 6"/>
+            </svg>
+            <span id="btnLabel">一键同步</span>
+        </button>
     </div>
 
-    <!-- 蓝牙控制卡片 -->
-    <div class="card">
-        <div class="card-title">
-            <span>BLE 连接与同步</span>
-            <span id="bleBadge" class="badge">未连接</span>
-        </div>
-        
-        <div class="select-group">
-            <label for="formatSelect">发送数据格式:</label>
-            <select id="formatSelect" onchange="updateHexPreview()">
-                <option value="float32">Float32 二进制 (8字节: 4B纬度+4B经度)</option>
-                <option value="string">ASCII 字符串 (例如: "23.12,113.24")</option>
-                <option value="float64">Float64 二进制 (16字节: 8B+8B)</option>
-                <option value="int32">Int32 固定点 (8字节: lat*1e7, lon*1e7)</option>
-            </select>
-        </div>
-
-        <div class="hex-preview" id="hexPreview">
-            待发送 HEX 字节流: [尚未获取 GPS]
-        </div>
-
-        <div class="button-group" style="margin-top: 12px;">
-            <button id="btnConnectBle" class="btn-secondary" onclick="connectAndSend()">
-                🔗 搜索板子并发送 GPS
-            </button>
-        </div>
+    <!-- 状态反馈 -->
+    <div class="status-box">
+        <div class="status-text" id="statusText">就绪</div>
+        <div class="status-detail" id="statusDetail">点击上方按钮，全自动定位并同步</div>
     </div>
 
-    <!-- 日志卡片 -->
-    <div class="card" style="flex: 1;">
-        <div class="card-title">
-            <span>运行日志</span>
-            <span style="font-size:0.75rem; color:var(--text-sub); cursor:pointer;" onclick="clearLogs()">清空</span>
-        </div>
-        <div class="console-box" id="consoleBox"></div>
-    </div>
+    <div class="footer">首次需弹窗授权，后续自动静默重连</div>
 
     <script>
-        // UUID 与 Zephyr 代码中保持 100% 一致 (小写)
         const SERVICE_UUID = '254fcd40-dd2b-4a69-be19-cbe488847aba';
         const CHAR_UUID    = 'c25e9d8c-3d56-4bb6-b1c4-8e9acbebef9c';
 
-        let currentLat = null;
-        let currentLon = null;
-        let watchId = null;
-        let bluetoothDevice = null;
-        let targetCharacteristic = null;
+        let isRunning = false;
 
-        // 日志打印器
-        function log(msg, type = 'info') {
-            const consoleBox = document.getElementById('consoleBox');
-            const entry = document.createElement('div');
-            entry.className = `log-entry ${type === 'err' ? 'log-err' : type === 'warn' ? 'log-warn' : ''}`;
-            const time = new Date().toTimeString().split(' ')[0];
-            entry.innerHTML = `<span class="log-time">[${time}]</span>${msg}`;
-            consoleBox.prepend(entry);
+        // UI 状态调度器
+        function setUiState(state, text, detail) {
+            const wrapper = document.getElementById('btnWrapper');
+            const btnLabel = document.getElementById('btnLabel');
+            const statusText = document.getElementById('statusText');
+            const statusDetail = document.getElementById('statusDetail');
+
+            wrapper.className = 'btn-wrapper ' + state;
+            statusText.innerText = text;
+            statusDetail.innerText = detail || '';
+
+            if (state === 'busy') {
+                btnLabel.innerText = '同步中...';
+            } else if (state === 'success') {
+                btnLabel.innerText = '已送达';
+            } else {
+                btnLabel.innerText = '一键同步';
+            }
         }
 
-        function clearLogs() {
-            document.getElementById('consoleBox').innerHTML = '';
-        }
-
-        // 1. 获取 GPS 定位逻辑
-        function toggleGpsTracking() {
-            const btn = document.getElementById('btnGetGps');
-            const badge = document.getElementById('gpsBadge');
-
-            if (watchId !== null) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-                btn.innerHTML = '📡 开启手机实时 GPS';
-                btn.className = 'btn-primary';
-                badge.innerText = '已暂停';
-                badge.className = 'badge';
-                log('已停止 GPS 持续更新');
-                return;
-            }
-
-            if (!navigator.geolocation) {
-                log('当前浏览器不支持 Geolocation API', 'err');
-                alert('当前浏览器不支持 GPS 定位！');
-                return;
-            }
-
-            log('正在请求高精度 GPS 授权...');
-            btn.innerHTML = '🛑 停止 GPS 监听';
-            btn.className = 'btn-secondary';
-
-            watchId = navigator.geolocation.watchPosition(
-                (position) => {
-                    currentLat = position.coords.latitude;
-                    currentLon = position.coords.longitude;
-                    const accuracy = position.coords.accuracy.toFixed(1);
-                    const now = new Date(position.timestamp).toLocaleTimeString();
-
-                    document.getElementById('latVal').innerText = currentLat.toFixed(6);
-                    document.getElementById('lonVal').innerText = currentLon.toFixed(6);
-                    document.getElementById('accVal').innerText = `±${accuracy} m`;
-                    document.getElementById('timeVal').innerText = now;
-
-                    badge.innerText = '已锁定';
-                    badge.className = 'badge active';
-
-                    updateHexPreview();
-                    log(`GPS 更新: 纬度=${currentLat.toFixed(6)}, 经度=${currentLon.toFixed(6)} (精度: ±${accuracy}m)`);
-                },
-                (error) => {
-                    log(`GPS 定位失败 [代码 ${error.code}]: ${error.message}`, 'err');
-                    if (error.code === error.PERMISSION_DENIED) {
-                        alert('定位权限被拒绝，请在手机系统或 Chrome 地址栏中允许位置访问！');
-                    }
-                },
-                {
-                    enableHighAccuracy: true, // 请求系统启用 GNSS/GPS 芯片
-                    timeout: 10000,
-                    maximumAge: 0
+        // 1. 获取手机 GPS 定位 (包装为 Promise)
+        function getPhoneGps() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    return reject(new Error('浏览器不支持定位 API'));
                 }
-            );
+                navigator.geolocation.getCurrentPosition(
+                    pos => resolve({
+                        lat: pos.coords.latitude,
+                        lon: pos.coords.longitude,
+                        acc: pos.coords.accuracy
+                    }),
+                    err => reject(new Error(`GPS 定位失败(${err.code}): ${err.message}`)),
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 8000,
+                        maximumAge: 0
+                    }
+                );
+            });
         }
 
-        // 2. 根据选中的格式打包数据为 ArrayBuffer
-        function buildGpsPayload() {
-            if (currentLat === null || currentLon === null) return null;
-            const format = document.getElementById('formatSelect').value;
-
-            if (format === 'float32') {
-                // 8 字节: 4B float32 (纬度) + 4B float32 (经度)，小端序
-                const buffer = new ArrayBuffer(8);
-                const view = new DataView(buffer);
-                view.setFloat32(0, currentLat, true);
-                view.setFloat32(4, currentLon, true);
-                return buffer;
-            } else if (format === 'float64') {
-                // 16 字节: 8B double + 8B double，小端序
-                const buffer = new ArrayBuffer(16);
-                const view = new DataView(buffer);
-                view.setFloat64(0, currentLat, true);
-                view.setFloat64(8, currentLon, true);
-                return buffer;
-            } else if (format === 'int32') {
-                // 8 字节: 4B int32 (lat * 1e7) + 4B int32 (lon * 1e7)
-                const buffer = new ArrayBuffer(8);
-                const view = new DataView(buffer);
-                view.setInt32(0, Math.round(currentLat * 1e7), true);
-                view.setInt32(4, Math.round(currentLon * 1e7), true);
-                return buffer;
-            } else if (format === 'string') {
-                // ASCII 字符串: 例如 "23.131388,113.245198"
-                const str = `${currentLat.toFixed(6)},${currentLon.toFixed(6)}`;
-                return new TextEncoder().encode(str).buffer;
-            }
-        }
-
-        // 3. 更新 HEX 预览框
-        function updateHexPreview() {
-            const hexEl = document.getElementById('hexPreview');
-            const buffer = buildGpsPayload();
-            if (!buffer) {
-                hexEl.innerText = '待发送 HEX 字节流: [尚未获取 GPS]';
-                return;
-            }
-            const bytes = new Uint8Array(buffer);
-            let hexStr = '';
-            for (let b of bytes) {
-                hexStr += '0x' + b.toString(16).padStart(2, '0').toUpperCase() + ' ';
-            }
-            hexEl.innerText = `待发送 (${bytes.length} 字节 HEX): \n${hexStr.trim()}`;
-        }
-
-        // 4. 扫描、连接并写入数据
-        async function connectAndSend() {
-            if (currentLat === null || currentLon === null) {
-                alert('请先点击上方按钮获取有效的手机 GPS！');
-                return;
-            }
-
+        // 2. 获取设备：优先检查历史已配对设备，没有才调起弹窗
+        async function getBleDevice() {
             if (!navigator.bluetooth) {
-                log('当前浏览器不支持 Web Bluetooth API，请确认是否使用 Android Chrome', 'err');
-                alert('当前浏览器不支持 Web Bluetooth。请务必使用安卓系统的原生 Chrome 浏览器！');
-                return;
+                throw new Error('当前浏览器不支持 Web Bluetooth，请使用 Android Chrome');
             }
 
-            const bleBadge = document.getElementById('bleBadge');
-            const btnConnect = document.getElementById('btnConnectBle');
+            // 核心特性：查询已授权设备，实现免弹窗静默重连
+            if (navigator.bluetooth.getDevices) {
+                const pairedDevices = await navigator.bluetooth.getDevices();
+                if (pairedDevices.length > 0) {
+                    // 取最近配对的设备
+                    return pairedDevices[0];
+                }
+            }
+
+            // 首次使用或未授权过：唤醒系统选择抽屉
+            return await navigator.bluetooth.requestDevice({
+                acceptAllDevices: true,
+                optionalServices: [SERVICE_UUID]
+            });
+        }
+
+        // 3. 一键核心控制流程
+        async function handleOneKeySync() {
+            if (isRunning) return;
+            isRunning = true;
+
+            const mainBtn = document.getElementById('mainBtn');
+            mainBtn.disabled = true;
 
             try {
-                btnConnect.disabled = true;
-                log('正在扫描 BLE 设备...');
+                setUiState('busy', '正在连接并定位...', '启动 GPS 引擎并寻路蓝牙');
 
-                // 核心：因广播包未包含 128-bit UUID，此处使用 acceptAllDevices + optionalServices
-                bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
-                    optionalServices: [SERVICE_UUID]
-                });
+                // 核心并发执行：避免 GPS 延迟导致 Web Bluetooth 用户手势超时失效
+                const gpsTask = getPhoneGps();
+                const deviceTask = getBleDevice();
 
-                log(`已选择设备: ${bluetoothDevice.name || '未命名设备'} [ID: ${bluetoothDevice.id}]`);
-                bleBadge.innerText = '正在连接...';
-                bleBadge.className = 'badge';
-
-                // 监听断开连接事件（Zephyr 端写入后会主动发起 disconnect）
-                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
-
-                log('正在建立 GATT 连接...');
-                const server = await bluetoothDevice.gatt.connect();
-                bleBadge.innerText = '已连接';
-                bleBadge.className = 'badge active';
-                log('GATT 连接成功！正在寻找 GPS 服务...');
-
+                // 阶段 1: 建立蓝牙链路
+                const device = await deviceTask;
+                setUiState('busy', '建立 GATT 通道...', `目标设备: ${device.name || '未知设备'}`);
+                
+                const server = await device.gatt.connect();
                 const service = await server.getPrimaryService(SERVICE_UUID);
-                log('成功发现 GPS 128-bit 服务');
+                const char = await service.getCharacteristic(CHAR_UUID);
 
-                targetCharacteristic = await service.getCharacteristic(CHAR_UUID);
-                log('成功获取 GPS Characteristic，准备写入数据...');
+                // 阶段 2: 汇总 GPS 经纬度
+                setUiState('busy', '锁定 GPS 坐标...', '正在同步高精度经纬度数据');
+                const gps = await gpsTask;
 
-                // 准备二进制数据
-                const payload = buildGpsPayload();
-                const bytes = new Uint8Array(payload);
-                log(`开始向板子发送 ${bytes.length} 字节数据...`);
+                // 阶段 3: 打包 Float32 数据 (8 字节: 4B lat + 4B lon, 小端序)
+                const buffer = new ArrayBuffer(8);
+                const view = new DataView(buffer);
+                view.setFloat32(0, gps.lat, true);
+                view.setFloat32(4, gps.lon, true);
 
-                // 使用 writeValueWithoutResponse 或 writeValueWithResponse
-                // 固件定义支持 WRITE 和 WRITE_WITHOUT_RESP
-                if (targetCharacteristic.writeValueWithoutResponse) {
-                    await targetCharacteristic.writeValueWithoutResponse(payload);
+                // 阶段 4: 写入特征值
+                if (char.writeValueWithoutResponse) {
+                    await char.writeValueWithoutResponse(buffer);
                 } else {
-                    await targetCharacteristic.writeValue(payload);
+                    await char.writeValue(buffer);
                 }
 
-                log('✅ GPS 数据已成功送达 PCB 板！', 'info');
-                log('等待板子确认并触发断开 (固件将执行跑马灯)...');
+                // 阶段 5: 成功反馈 (固件会自行 disconnect 并触发跑马灯)
+                setUiState('success', '同步成功！板子已启动跑马灯', `坐标: ${gps.lat.toFixed(5)}, ${gps.lon.toFixed(5)} (精度 ±${gps.acc.toFixed(0)}m)`);
 
-            } catch (error) {
-                log(`操作中断或失败: ${error.message}`, 'err');
-                bleBadge.innerText = '连接失败';
-                bleBadge.className = 'badge';
-                btnConnect.disabled = false;
+            } catch (err) {
+                console.error(err);
+                setUiState('danger', '同步中断', err.message);
+            } finally {
+                isRunning = false;
+                mainBtn.disabled = false;
+                // 5 秒后自动复位为待命状态
+                setTimeout(() => {
+                    if (!isRunning) {
+                        setUiState('normal', '就绪', '点击上方按钮，全自动定位并同步');
+                    }
+                }, 5000);
             }
-        }
-
-        // 断开连接回调
-        function onDisconnected(event) {
-            const bleBadge = document.getElementById('bleBadge');
-            const btnConnect = document.getElementById('btnConnectBle');
-            bleBadge.innerText = '已断开';
-            bleBadge.className = 'badge';
-            btnConnect.disabled = false;
-
-            log('⚡ 蓝牙连接已断开（如果刚才已发送数据，说明板子已确认接收并唤醒跑马灯！）', 'warn');
         }
     </script>
 </body>
