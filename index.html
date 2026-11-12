@@ -97,6 +97,13 @@
             color: var(--success);
             border-color: var(--success);
         }
+        .danger .ring {
+            border-color: var(--danger);
+        }
+        .danger .action-btn {
+            color: var(--danger);
+            border-color: var(--danger);
+        }
 
         @keyframes spin {
             100% { transform: rotate(360deg); }
@@ -122,6 +129,7 @@
             font-size: 0.75rem;
             color: var(--text-sub);
             font-family: monospace;
+            word-break: break-word;
         }
 
         .footer {
@@ -151,10 +159,10 @@
     <!-- 状态反馈 -->
     <div class="status-box">
         <div class="status-text" id="statusText">就绪</div>
-        <div class="status-detail" id="statusDetail">点击上方按钮，全自动定位并同步</div>
+        <div class="status-detail" id="statusDetail">点击上方按钮，自动过滤并同步 GPS</div>
     </div>
 
-    <div class="footer">首次需弹窗授权，后续自动静默重连</div>
+    <div class="footer">已启用专属 Service UUID 过滤，屏蔽无关设备</div>
 
     <script>
         const SERVICE_UUID = '254fcd40-dd2b-4a69-be19-cbe488847aba';
@@ -177,6 +185,8 @@
                 btnLabel.innerText = '同步中...';
             } else if (state === 'success') {
                 btnLabel.innerText = '已送达';
+            } else if (state === 'danger') {
+                btnLabel.innerText = '重试';
             } else {
                 btnLabel.innerText = '一键同步';
             }
@@ -204,25 +214,22 @@
             });
         }
 
-        // 2. 获取设备：优先检查历史已配对设备，没有才调起弹窗
+        // 2. 获取设备：优先复用当前页面已授权设备，否则按专属 Service UUID 过滤扫描
         async function getBleDevice() {
             if (!navigator.bluetooth) {
                 throw new Error('当前浏览器不支持 Web Bluetooth，请使用 Android Chrome');
             }
 
-            // 核心特性：查询已授权设备，实现免弹窗静默重连
             if (navigator.bluetooth.getDevices) {
                 const pairedDevices = await navigator.bluetooth.getDevices();
                 if (pairedDevices.length > 0) {
-                    // 取最近配对的设备
                     return pairedDevices[0];
                 }
             }
 
-            // 首次使用或未授权过：唤醒系统选择抽屉
+            // 利用固件扫描响应包 (sd) 中的 128-bit UUID 精准过滤周边无关高频设备
             return await navigator.bluetooth.requestDevice({
-                acceptAllDevices: true,
-                optionalServices: [SERVICE_UUID]
+                filters: [{ services: [SERVICE_UUID] }]
             });
         }
 
@@ -235,21 +242,21 @@
             mainBtn.disabled = true;
 
             try {
-                setUiState('busy', '正在连接并定位...', '启动 GPS 引擎并寻路蓝牙');
+                setUiState('busy', '正在定位并搜索罗盘...', '已过滤无关蓝牙设备');
 
-                // 核心并发执行：避免 GPS 延迟导致 Web Bluetooth 用户手势超时失效
+                // 并发启动 GPS 获取与蓝牙扫描，防止定位耗时导致用户手势过期
                 const gpsTask = getPhoneGps();
                 const deviceTask = getBleDevice();
 
                 // 阶段 1: 建立蓝牙链路
                 const device = await deviceTask;
-                setUiState('busy', '建立 GATT 通道...', `目标设备: ${device.name || '未知设备'}`);
-                
+                setUiState('busy', '建立 GATT 通道...', `目标设备: ${device.name || 'Heart-Press'}`);
+
                 const server = await device.gatt.connect();
                 const service = await server.getPrimaryService(SERVICE_UUID);
                 const char = await service.getCharacteristic(CHAR_UUID);
 
-                // 阶段 2: 汇总 GPS 经纬度
+                // 阶段 2: 等待高精度 GPS 坐标就绪
                 setUiState('busy', '锁定 GPS 坐标...', '正在同步高精度经纬度数据');
                 const gps = await gpsTask;
 
@@ -266,8 +273,12 @@
                     await char.writeValue(buffer);
                 }
 
-                // 阶段 5: 成功反馈 (固件会自行 disconnect 并触发跑马灯)
-                setUiState('success', '同步成功！板子已启动跑马灯', `坐标: ${gps.lat.toFixed(5)}, ${gps.lon.toFixed(5)} (精度 ±${gps.acc.toFixed(0)}m)`);
+                // 阶段 5: 成功反馈 (固件收到后会自行 disconnect 并触发跑马灯)
+                setUiState(
+                    'success',
+                    '同步成功！板子已启动跑马灯',
+                    `坐标: ${gps.lat.toFixed(5)}, ${gps.lon.toFixed(5)} (精度 ±${gps.acc.toFixed(0)}m)`
+                );
 
             } catch (err) {
                 console.error(err);
@@ -278,7 +289,7 @@
                 // 5 秒后自动复位为待命状态
                 setTimeout(() => {
                     if (!isRunning) {
-                        setUiState('normal', '就绪', '点击上方按钮，全自动定位并同步');
+                        setUiState('normal', '就绪', '点击上方按钮，自动过滤并同步 GPS');
                     }
                 }, 5000);
             }
